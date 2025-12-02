@@ -26,7 +26,7 @@ const Footer = () => {
           </div>
           <div className="footer-social">
             <motion.a
-              href="https://www.linkedin.com"
+              href='https://www.linkedin.com/in/amirhamza4085/'
               target="_blank"
               rel="noopener noreferrer"
               whileHover={{ scale: 1.2, y: -5 }}

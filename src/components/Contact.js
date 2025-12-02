@@ -20,7 +20,7 @@ const Contact = () => {
     {
       name: 'LinkedIn',
       icon: <FaLinkedin />,
-      url: 'https://www.linkedin.com',
+      url: 'https://www.linkedin.com/in/amirhamza4085/',
       color: '#0077B5',
     },
   ];
