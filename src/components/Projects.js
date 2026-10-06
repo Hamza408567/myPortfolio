@@ -1,44 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaGithub, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaArrowRight, FaDownload, FaGooglePlay } from 'react-icons/fa';
 import './Projects.css';
 
 const Projects = () => {
   const [imageErrors, setImageErrors] = useState({});
-  // Helper function to get Play Store icon from package name
-  // You can also directly provide imageUrl in the project object
-  const getPlayStoreIcon = (playStoreUrl) => {
-    if (!playStoreUrl) return null;
-    try {
-      // Extract package name from Play Store URL
-      // Format: https://play.google.com/store/apps/details?id=com.package.name
-      const match = playStoreUrl.match(/[?&]id=([^&]+)/);
-      if (match && match[1]) {
-        const packageName = match[1];
-        // Use Google Play icon API - this is a common format
-        // Note: You may need to use the actual icon URL from Play Store page
-        return `https://play-lh.googleusercontent.com/${packageName}`;
-      }
-    } catch (e) {
-      console.error('Error extracting Play Store icon:', e);
-    }
-    return null;
-  };
-
   const projects = [
-    // TODO: Replace these with your actual projects from CV
-    // To get Play Store icon: 
-    // 1. Go to your app's Play Store page
-    // 2. Right-click on the app icon
-    // 3. Copy image address
-    // 4. Paste it in the imageUrl field below
-    // OR use: https://play-lh.googleusercontent.com/[package-name] (may not always work)
     {
       title: 'Bus Simulator - Bus Games',
       description: 'Bus Simulator - Bus Games is a bus simulator game that allows you to drive a bus and navigate through the city.',
       tech: ['Unity', 'C#', 'Game Development'],
-      playStore: 'https://play.google.com/store/apps/details?id=com.jimaapps.city.coach.bus.simulator.driving&hl=en&gl=US', // Add Play Store URL: https://play.google.com/store/apps/details?id=com.package.name
-      imageUrl: 'https://play-lh.googleusercontent.com/P_UNHbhDZVoQ-HoXPRpMPvNSRpKy_wAt3S1pHFtqMT6qQyS-bJlPCJkbjGJEhanJU5c=w480-h960-rw', // Add direct icon image URL from Play Store (right-click icon > copy image address)
+      playStore: 'https://play.google.com/store/apps/details?id=com.jimaapps.city.coach.bus.simulator.driving&hl=en&gl=US',
+      imageUrl: 'https://play-lh.googleusercontent.com/P_UNHbhDZVoQ-HoXPRpMPvNSRpKy_wAt3S1pHFtqMT6qQyS-bJlPCJkbjGJEhanJU5c=w480-h960-rw',
       fallbackEmoji: '🎮',
     },
     {
@@ -105,10 +78,7 @@ const Projects = () => {
       imageUrl: 'https://play-lh.googleusercontent.com/_aZqZtPYg01fzlUFViq_ekSHQHMmXBCKTpynHyjzHnuct7kb07cLVJWvMsiDe8hUUQ=w480-h960-rw',
       fallbackEmoji: '🎮',
     },
-  ].map(project => ({
-    ...project,
-    imageUrl: project.imageUrl || getPlayStoreIcon(project.playStore) || null,
-  }));
+  ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -157,14 +127,22 @@ const Projects = () => {
           viewport={{ once: true }}
         >
           {projects.map((project, index) => (
-            <motion.div
-              key={index}
+            <motion.a
+              key={project.title}
               className="project-card"
+              href={project.playStore}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Download ${project.title} on Google Play`}
               variants={itemVariants}
               whileHover={{ y: -10 }}
-              transition={{ type: 'spring', stiffness: 300 }}
+              whileTap={{ scale: 0.985 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
             >
               <div className="project-image">
+                <span className="play-store-badge">
+                  <FaGooglePlay /> Google Play
+                </span>
                 {project.imageUrl && !imageErrors[index] ? (
                   <img 
                     src={project.imageUrl} 
@@ -173,13 +151,10 @@ const Projects = () => {
                     loading="lazy"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
-                      // Fallback to emoji if image fails to load
-                      console.error('Image failed to load:', project.imageUrl, 'for project:', project.title);
                       setImageErrors(prev => ({ ...prev, [index]: true }));
                       e.target.style.display = 'none';
                     }}
                     onLoad={(e) => {
-                      // Image loaded successfully
                       const emojiDiv = e.target.parentElement.querySelector('.project-emoji');
                       if (emojiDiv) {
                         emojiDiv.style.display = 'none';
@@ -204,22 +179,16 @@ const Projects = () => {
                     </span>
                   ))}
                 </div>
-                <div className="project-links">
-                  {project.playStore && (
-                    <motion.a
-                      href={project.playStore}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="project-link"
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <FaExternalLinkAlt /> View on Play Store
-                    </motion.a>
-                  )}
+                <div className="project-download">
+                  <span className="project-download-icon"><FaDownload /></span>
+                  <span className="project-download-copy">
+                    <small>Get the game</small>
+                    <strong>Download on Google Play</strong>
+                  </span>
+                  <FaArrowRight className="project-download-arrow" />
                 </div>
               </div>
-            </motion.div>
+            </motion.a>
           ))}
         </motion.div>
       </div>
