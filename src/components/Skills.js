@@ -1,42 +1,49 @@
 import { motion } from 'framer-motion';
 import React from 'react';
-import { FaCode, FaGitAlt, FaGamepad, FaSitemap, FaLayerGroup, FaBolt, FaPalette, FaImage } from 'react-icons/fa';
-import { SiUnity, SiCsharp, SiAdobephotoshop } from 'react-icons/si';
+import { FaCubes, FaGamepad, FaRocket, FaTools } from 'react-icons/fa';
 import './Skills.css';
 
 const Skills = () => {
-  const skills = [
-    { name: 'Unity', icon: <SiUnity />, level: 95, color: '#000000' },
-    // { name: 'C#', icon: <FaCube  />, level: 90, color: '#239120' },
-    { name: 'Game Development', icon: <FaGamepad />, level: 95, color: '#4CAF50' },
-    { name: 'Game Design', icon: <FaPalette />, level: 90, color: '#E91E63' },
-    { name: 'Finite State Machines (FSM)', icon: <FaSitemap />, level: 90, color: '#9C27B0' },
-    { name: 'Object-Oriented Programming (OOP)', icon: <FaLayerGroup />, level: 95, color: '#2196F3' },
-    { name: 'Design Patterns', icon: <FaCode />, level: 90, color: '#FF9800' },
-    { name: 'Event Driven Programming', icon: <FaBolt />, level: 90, color: '#FFC107' },
-    { name: 'Adobe Photoshop', icon: <SiAdobephotoshop />, level: 85, color: '#31A8FF' },
-    { name: 'Git & Version Control', icon: <FaGitAlt />, level: 85, color: '#F05032' },
+  const skillCategories = [
+    {
+      title: 'Core Development',
+      icon: <FaCubes />,
+      color: '#3b82f6',
+      skills: ['Unity', 'C#', '2D', '3D', 'Mobile Games', 'VR', 'AR', 'SOLID Principles'],
+    },
+    {
+      title: 'Architecture & Tooling',
+      icon: <FaTools />,
+      color: '#8b5cf6',
+      skills: ['Event-Driven Architecture', 'Design Patterns', 'Modular Systems', 'State Machines', 'Scriptable Objects', 'Internal Frameworks', 'Automated Tooling', 'CI/CD'],
+    },
+    {
+      title: 'Gameplay Systems',
+      icon: <FaGamepad />,
+      color: '#10b981',
+      skills: ['Interaction Systems', 'Abilities', 'Multiplayer', 'Inventory', 'Player Controls', 'AI', 'NPC Behavior', 'Vehicles', 'Cutscenes'],
+    },
+    {
+      title: 'Optimization & Production',
+      icon: <FaRocket />,
+      color: '#f59e0b',
+      skills: ['Performance Profiling', 'Low-End Device Optimization', 'Mobile Optimization', 'Crash Reduction', 'Asset Optimization', 'Memory Profiling', 'Art-to-Engineering Workflows'],
+    },
   ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.14 } },
   };
 
-  const itemVariants = {
-    hidden: { y: 50, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        duration: 0.5,
-      },
-    },
+  const cardVariants = {
+    hidden: { y: 40, opacity: 0 },
+    visible: { y: 0, opacity: 1, transition: { duration: 0.5 } },
+  };
+
+  const chipVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.25 } },
   };
 
   return (
@@ -53,7 +60,7 @@ const Skills = () => {
             My <span className="gradient-text">Skills</span>
           </h2>
           <p className="section-subtitle">
-            Technologies and tools I work with
+            Technologies, systems, and workflows I use to build engaging games
           </p>
         </motion.div>
 
@@ -62,32 +69,41 @@ const Skills = () => {
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
+          viewport={{ once: true, amount: 0.1 }}
         >
-          {skills.map((skill, index) => (
-            <motion.div
-              key={index}
-              className="skill-card"
-              variants={itemVariants}
-              whileHover={{ scale: 1.05, y: -10 }}
-              transition={{ type: 'spring', stiffness: 300 }}
+          {skillCategories.map((category) => (
+            <motion.article
+              key={category.title}
+              className="skill-category-card"
+              style={{ '--category-color': category.color }}
+              variants={cardVariants}
+              whileHover={{ y: -8 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
             >
-              <div className="skill-icon" style={{ color: skill.color }}>
-                {skill.icon}
+              <div className="skill-category-header">
+                <div className="skill-category-icon" aria-hidden="true">
+                  {category.icon}
+                </div>
+                <h3 className="skill-category-title">{category.title}</h3>
               </div>
-              <h3 className="skill-name">{skill.name}</h3>
-              <div className="skill-bar">
-                <motion.div
-                  className="skill-progress"
-                  style={{ backgroundColor: skill.color }}
-                  initial={{ width: 0 }}
-                  whileInView={{ width: `${skill.level}%` }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 1, delay: index * 0.1 }}
-                />
-              </div>
-              <span className="skill-level">{skill.level}%</span>
-            </motion.div>
+
+              <motion.ul
+                className="skill-chips"
+                variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.05 } } }}
+              >
+                {category.skills.map((skill) => (
+                  <motion.li
+                    key={skill}
+                    className="skill-chip"
+                    variants={chipVariants}
+                    whileHover={{ y: -2, scale: 1.03 }}
+                  >
+                    <span className="skill-chip-dot" aria-hidden="true" />
+                    {skill}
+                  </motion.li>
+                ))}
+              </motion.ul>
+            </motion.article>
           ))}
         </motion.div>
       </div>
@@ -96,4 +112,3 @@ const Skills = () => {
 };
 
 export default Skills;
-
