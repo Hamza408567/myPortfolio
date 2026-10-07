@@ -78,6 +78,29 @@ const Projects = () => {
       imageUrl: 'https://play-lh.googleusercontent.com/_aZqZtPYg01fzlUFViq_ekSHQHMmXBCKTpynHyjzHnuct7kb07cLVJWvMsiDe8hUUQ=w480-h960-rw',
       fallbackEmoji: '🎮',
     },
+    {
+      title: 'Ants & Cubes',
+      description: 'Guide color-matched ant colonies as they dig, sort, and take apart colorful voxel creations.',
+      tech: ['Mobile', 'Puzzle'],
+      playStore: 'https://play.google.com/store/apps/details?id=com.BangerGames_AntsCubes',
+      imageUrl: 'https://play-lh.googleusercontent.com/zAJwxlkSNWqYfmBM9lSMmRJUwabaLGHReiYvIh7lrYrl-ObR4nJjUaPPoV2ltnsVqEw9PL5kP2xU3CKYTtgug90=w480-h960-rw',
+      fallbackEmoji: '🐜',
+    },
+    {
+      title: 'Plant Revive',
+      description: 'Draw routes that bring water to thirsty plants, navigate obstacles, and help a garden grow.',
+      tech: ['Mobile', 'Puzzle'],
+      playStore: 'https://play.google.com/store/apps/details?id=com.BangerGames.PlanRevive.com',
+      imageUrl: 'https://play-lh.googleusercontent.com/Y6ZiynGupo8dz6IVgy7JDzK0cVn0xX5iYfGb-cAVWujXlqzhKjTAqdncq1khAWO1nK4tl6r78ulOurISXxwMGQ=w480-h960-rw',
+      fallbackEmoji: '🌱',
+    },
+    {
+      title: 'Find Toy',
+      description: 'Another mobile game from my project collection.',
+      tech: ['Mobile', 'Game Development'],
+      playStore: 'https://play.google.com/store/apps/details?id=www.BangerGames.FindToy.com',
+      fallbackEmoji: '🧸',
+    },
   ];
 
   const containerVariants = {

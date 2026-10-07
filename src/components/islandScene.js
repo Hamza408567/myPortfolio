@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createMeadowLayout, grassPush } from './islandGrass';
+import { createPondWaterMaterial } from './islandWater';
+import { createFrogState, startFrogHop, updateFrog, frogSurfaceHeight } from './islandFrog';
+import { alignSkyLight } from './islandLighting';
 
 // A self-contained scene: all geometry and materials are created locally.
 export function createIslandScene(host, { onHover, onAction, onError, reducedMotion = false, initialNight = false }) {
@@ -37,7 +40,7 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.25;
     const canvas = renderer.domElement;
-    canvas.setAttribute('aria-label', 'Floating island with a cabin, trees, and pond. Drag to rotate; click or tap the cabin, trees, or pond to interact.');
+    canvas.setAttribute('aria-label', 'Floating island with a cabin, meadow, and pond. Hover near the frog or tap it to make it hop away. Move over grass to bend it. Drag to rotate; tap the cabin, trees, or pond to interact.');
     canvas.setAttribute('role', 'img');
     host.appendChild(canvas);
 
@@ -173,14 +176,17 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
 
     const pond = new THREE.Group(); pond.position.set(0.85, 0.26, 1.0); pond.userData.action = 'pond'; island.add(pond);
     add(new THREE.CylinderGeometry(0.92, 0.94, 0.045, 40), stone, pond, [0, 0, 0], [1, 1, 0.73]);
-    const water = material('#54b9bf', { roughness: 0.25, metalness: 0.15, emissive: '#1b5368', emissiveIntensity: 0.15 });
-    add(new THREE.CylinderGeometry(0.81, 0.81, 0.05, 40), water, pond, [0, 0.026, 0], [1, 1, 0.73]);
+    const water = createPondWaterMaterial(); materials.add(water);
+    const waterSurface = add(new THREE.CircleGeometry(0.81, 64), water, pond, [0, 0.052, 0]);
+    waterSurface.rotation.x = -Math.PI / 2; waterSurface.scale.y = 0.73;
+    waterSurface.castShadow = false;
+    const pondPoint = new THREE.Vector3();
+    const rippleOrigin = new THREE.Vector2();
     const lily = material('#548b61');
-    for (let i = 0; i < 3; i++) add(new THREE.CylinderGeometry(0.11, 0.11, 0.02, 16), lily, pond, [-0.36 + i * 0.2, 0.06, 0.3 - i * 0.03]);
-    const ripples = [];
+    const lilies = [];
     for (let i = 0; i < 3; i++) {
-      const mat = new THREE.MeshBasicMaterial({ color: '#d4ffff', transparent: true, opacity: 0, side: THREE.DoubleSide }); materials.add(mat);
-      const ring = add(new THREE.RingGeometry(0.19, 0.205, 48), mat, pond, [0.05, 0.065 + i * 0.001, 0]); ring.rotation.x = -Math.PI / 2; ring.visible = false; ripples.push(ring);
+      const pad = add(new THREE.CylinderGeometry(0.11, 0.11, 0.015, 24, 1, false, 0.18, Math.PI * 2 - 0.36), lily, pond, [-0.36 + i * 0.2, 0.065, 0.3 - i * 0.03]);
+      pad.rotation.y = i * 1.7; lilies.push(pad);
     }
     for (let i = 0; i < 5; i++) {
       const pebble = add(new THREE.CylinderGeometry(0.17, 0.19, 0.07, 7), stone, island, [-0.35 - i * 0.15, 0.28, 0.65 + i * 0.32]); pebble.scale.z = 0.72;
@@ -223,6 +229,42 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
     const meadowRest = new Float32Array(meadowVertices);
     let grassPointer = null;
 
+    const frogState = createFrogState();
+    const frog = new THREE.Group(); frog.userData.action = 'frog'; frog.scale.setScalar(0.7); island.add(frog);
+    const frogBody = new THREE.Group(); frog.add(frogBody);
+    const frogGreen = material('#5b9c42'), frogLight = material('#c9db83'), frogDark = material('#315f31');
+    const eyeWhite = material('#f7e6b6'), eyeBlack = material('#172b24');
+    const frogSphere = new THREE.SphereGeometry(1, 12, 8);
+    add(frogSphere, frogGreen, frogBody, [0, 0.12, -0.025], [0.16, 0.11, 0.2]);
+    add(frogSphere, frogLight, frogBody, [0, 0.08, 0.11], [0.13, 0.065, 0.11]);
+    add(frogSphere, frogGreen, frogBody, [0, 0.16, 0.12], [0.18, 0.095, 0.12]);
+    const frogEyes = [];
+    const frogHindLegs = [], frogForeLegs = [];
+    for (const side of [-1, 1]) {
+      const hind = new THREE.Group(); hind.position.set(side * 0.13, 0.08, -0.1); frogBody.add(hind); frogHindLegs.push(hind);
+      add(frogSphere, frogDark, hind, [side * 0.03, 0, -0.02], [0.09, 0.075, 0.12]);
+      add(frogSphere, frogGreen, hind, [side * 0.04, -0.04, -0.13], [0.04, 0.035, 0.1]);
+      for (let toe = 0; toe < 3; toe++) add(frogSphere, frogLight, hind, [side * 0.04 + (toe - 1) * 0.025, -0.055, -0.22], [0.012, 0.014, 0.045]);
+      const fore = new THREE.Group(); fore.position.set(side * 0.15, 0.08, 0.13); frogBody.add(fore); frogForeLegs.push(fore);
+      add(frogSphere, frogGreen, fore, [0, -0.045, 0.03], [0.035, 0.035, 0.1]);
+      add(frogSphere, frogGreen, frogBody, [side * 0.1, 0.23, 0.14], [0.065, 0.065, 0.06]);
+      const eye = new THREE.Group(); eye.position.set(side * 0.1, 0.24, 0.18); frogBody.add(eye); frogEyes.push(eye);
+      add(frogSphere, eyeWhite, eye, [0, 0, 0], [0.045, 0.045, 0.032]);
+      add(frogSphere, eyeBlack, eye, [0, 0, 0.029], [0.019, 0.029, 0.008]);
+      for (let toe = 0; toe < 3; toe++) add(frogSphere, frogLight, fore, [(toe - 1) * 0.025, -0.057, 0.1], [0.013, 0.014, 0.032]);
+    }
+    for (const x of [-0.07, 0.07]) add(frogSphere, frogDark, frogBody, [x, 0.22, -0.035], [0.027, 0.012, 0.075]);
+    frog.position.set(frogState.x, frogState.y, frogState.z);
+    let frogThreat = null;
+    const frogPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.33);
+    const frogPointerPoint = new THREE.Vector3();
+    const disturbFrog = () => {
+      if (startFrogHop(frogState, frogThreat, reduced)) {
+        onAction('A little hop to a quieter spot.');
+        requestRender();
+      }
+    };
+
     const clouds = [];
     const cloudMat = material('#f5eee0', { roughness: 1 });
     [[-2.8, 2.8, -1.1, 0.6], [2.3, 2.9, -1.8, 0.48], [1.7, -0.65, 2.5, 0.38]].forEach(([x, y, z, scale]) => {
@@ -242,7 +284,7 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
     const starsMat = new THREE.PointsMaterial({ color: '#dcecff', size: 0.045, transparent: true, opacity: 0 }); materials.add(starsMat); scene.add(new THREE.Points(starsGeometry, starsMat));
 
     let hovered = null;
-    const actionLabels = { cabin: 'Cabin · toggle lights', trees: 'Trees · send a breeze', pond: 'Pond · make ripples' };
+    const actionLabels = { cabin: 'Cabin · toggle lights', trees: 'Trees · send a breeze', pond: 'Pond · make ripples', frog: 'A shy frog · give it a little space' };
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const pick = event => {
@@ -254,6 +296,18 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       requestRender();
       let object = hit?.object;
       while (object && !object.userData.action) object = object.parent;
+      frogThreat = null;
+      // The ray must reach the frog or open terrain; walls cannot scare it through the cabin.
+      if (hit && (hit.object === ground || object?.userData.action === 'pond' || object?.userData.action === 'frog')) {
+        if (raycaster.ray.intersectPlane(frogPlane, frogPointerPoint)) {
+          frogThreat = { x: frogPointerPoint.x, z: frogPointerPoint.z };
+        }
+      }
+      if (object?.userData.action === 'pond') {
+        pond.worldToLocal(pondPoint.copy(hit.point));
+        rippleOrigin.set(pondPoint.x / 0.81, -pondPoint.z / (0.81 * 0.73));
+        if (rippleOrigin.length() > 0.9) rippleOrigin.setLength(0.9);
+      }
       return object?.userData.action || null;
     };
     const highlight = action => {
@@ -261,14 +315,15 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       hovered = action;
       wood.emissive.set(action === 'cabin' ? '#3b2218' : '#000000');
       foliage.forEach(mat => mat.emissive.set(action === 'trees' ? '#173b25' : '#000000'));
-      water.emissiveIntensity = action === 'pond' ? 0.75 : 0.15;
+      water.uniforms.uHover.value = action === 'pond' ? 1 : 0;
       canvas.style.cursor = action ? 'pointer' : 'grab';
       onHover(action ? actionLabels[action] : ''); requestRender();
     };
     const act = action => {
       if (action === 'cabin') { lamps = !lamps; onAction(lamps ? 'Cabin lights on. Welcome home.' : 'Cabin lights off. A little quiet.'); }
       if (action === 'trees') { gust = reduced ? 0 : 2.4; foliage.forEach(mat => mat.emissive.set(reduced ? '#173b25' : '#000000')); onAction('A breeze through the pines.'); }
-      if (action === 'pond') { rippleTime = reduced ? 0.8 : 0; onAction('Ripples across the pond.'); }
+      if (action === 'pond') { rippleTime = reduced ? 0.6 : 0; water.uniforms.uRippleOrigin.value.copy(rippleOrigin); onAction('Ripples across the pond.'); }
+      if (action === 'frog') disturbFrog();
       requestRender();
     };
     let tap = null;
@@ -279,22 +334,39 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       else if (tap) tap.moved = true;
       highlight(null);
       grassPointer = null;
+      frogThreat = null;
     });
     listen(canvas, 'pointermove', event => {
       if (tap && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 6) tap.moved = true;
-      if (!pointers.size && event.pointerType !== 'touch') highlight(pick(event));
+      if (!pointers.size && event.pointerType !== 'touch') {
+        const action = pick(event); highlight(action);
+        if (frogThreat && (action === 'frog' || Math.hypot(frogState.x - frogThreat.x, frogState.z - frogThreat.z) < 0.55)) disturbFrog();
+      }
     });
     listen(canvas, 'pointerup', event => {
       if (tap && tap.id === event.pointerId && !tap.moved && pointers.size === 1) { const action = pick(event); if (action) act(action); }
       pointers.delete(event.pointerId); if (!pointers.size) tap = null;
     });
-    listen(canvas, 'pointercancel', event => { pointers.delete(event.pointerId); tap = null; grassPointer = null; requestRender(); });
-    listen(canvas, 'pointerleave', () => { grassPointer = null; highlight(null); requestRender(); });
+    listen(canvas, 'pointercancel', event => { pointers.delete(event.pointerId); tap = null; grassPointer = null; frogThreat = null; requestRender(); });
+    listen(canvas, 'pointerleave', () => { grassPointer = null; frogThreat = null; highlight(null); requestRender(); });
     listen(canvas, 'webglcontextlost', event => { event.preventDefault(); dispose(); onError(); });
 
     const dayColor = new THREE.Color('#ffdfb2'), moonColor = new THREE.Color('#92b6ff');
     function update(dt) {
       if (!reduced) time += dt;
+      const landed = updateFrog(frogState, dt, reduced);
+      if (landed && frogSurfaceHeight(frogState) > 0.3) {
+        water.uniforms.uRippleOrigin.value.set((frogState.x - 0.85) / 0.81, -(frogState.z - 1) / (0.81 * 0.73));
+        rippleTime = reduced ? 0.6 : 0;
+      }
+      frog.position.set(frogState.x, frogState.y, frogState.z);
+      frog.rotation.y = frogState.heading;
+      frogBody.scale.set(1 + frogState.crouch * 0.12, 1 - frogState.crouch * 0.3, 1 + frogState.stretch * 0.14);
+      frogBody.rotation.x = frogState.pitch;
+      frogHindLegs.forEach(leg => { leg.scale.z = 1 + frogState.legExtension * 1.1; leg.rotation.x = -frogState.legExtension * 0.35; });
+      frogForeLegs.forEach(leg => { leg.rotation.x = frogState.stretch * 0.65; });
+      const blink = !reduced && time % 4.8 > 4.64 ? 0.15 : 1;
+      frogEyes.forEach(eye => { eye.scale.y = blink; });
       const target = night ? 1 : 0;
       nightMix = reduced ? target : THREE.MathUtils.damp(nightMix, target, 5, dt);
       sky.intensity = THREE.MathUtils.lerp(2.6, 0.8, nightMix);
@@ -322,23 +394,26 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       });
       meadowPosition.needsUpdate = true;
       if (rippleTime >= 0 && !reduced) rippleTime += dt;
-      ripples.forEach((ring, i) => {
-        const progress = rippleTime - i * 0.23;
-        ring.visible = rippleTime >= 0 && progress > 0 && progress < 1.2;
-        if (ring.visible) { ring.scale.setScalar(0.3 + progress * 2.8); ring.material.opacity = (1 - progress / 1.2) * 0.7; }
+      if (rippleTime > 2) rippleTime = -1;
+      water.uniforms.uTime.value = reduced ? 0 : time;
+      water.uniforms.uNight.value = nightMix;
+      water.uniforms.uRippleAge.value = rippleTime;
+      lilies.forEach((pad, i) => {
+        pad.position.y = 0.065 + (reduced ? 0 : Math.sin(time * 1.3 + i * 2) * 0.006);
+        pad.rotation.z = reduced ? 0 : Math.sin(time + i) * 0.035;
       });
-      if (rippleTime > 1.7) rippleTime = -1;
     }
     function render(timestamp = 0) {
       frame = 0;
       if (disposed || !visible) return;
       const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, 0.05) : 1 / 60;
       lastTime = timestamp;
+      alignSkyLight(sun, camera, controls.target, host.clientWidth, host.clientHeight);
       update(dt); renderer.render(scene, camera);
       if (!reduced) frame = requestAnimationFrame(render);
     }
     function requestRender() { if (!disposed && visible && !frame) frame = requestAnimationFrame(render); }
-    controls.addEventListener('change', () => { grassPointer = null; requestRender(); });
+    controls.addEventListener('change', () => { grassPointer = null; frogThreat = null; requestRender(); });
     const resize = () => {
       if (disposed) return;
       const width = host.clientWidth, height = host.clientHeight;
