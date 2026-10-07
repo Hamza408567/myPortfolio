@@ -25,6 +25,10 @@ test('initializes in daylight and displays direct-object interaction feedback', 
   await waitFor(() => expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled());
   expect(createIslandScene.mock.calls[0][1].reducedMotion).toBe(true);
   expect(createIslandScene.mock.calls[0][1].initialNight).toBe(false);
+  expect(screen.getByRole('region', { name: 'Interactive floating island' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+  expect(screen.queryByText('A SMALL ESCAPE')).not.toBeInTheDocument();
+  expect(screen.queryByText('01 / EXPLORE')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Day' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Cabin lights' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Rotate left' })).not.toBeInTheDocument();

@@ -15,7 +15,7 @@ export default function Hero() {
           <h1 className="hero-title"><span className="gradient-text">Amir Hamza</span><br /><span className="hero-role">Game Developer</span></h1>
           <p className="hero-description">Creating immersive and engaging game experiences with Unity.<br />Passionate about bringing creative visions to life through interactive gameplay.</p>
           <div className="hero-buttons">
-            <a href="/my_cv/Amir Hamza V8.pdf" download className="btn btn-primary"><FaDownload aria-hidden="true" /> Download CV</a>
+            <a href="/my_cv/Amir_Hamza_CV.pdf" download className="btn btn-primary"><FaDownload aria-hidden="true" /> Download CV</a>
             <button type="button" onClick={scrollToProjects} className="btn btn-secondary">View Projects <FaArrowDown aria-hidden="true" /></button>
           </div>
           <div className="hero-social"><a href="https://www.linkedin.com/in/amirhamza4085/" target="_blank" rel="noopener noreferrer"><FaLinkedinIn aria-hidden="true" /><span>LinkedIn</span><span aria-hidden="true">↗</span></a></div>

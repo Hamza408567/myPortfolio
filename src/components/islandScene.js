@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createMeadowLayout, grassPush } from './islandGrass';
 
 // A self-contained scene: all geometry and materials are created locally.
 export function createIslandScene(host, { onHover, onAction, onError, reducedMotion = false, initialNight = false }) {
@@ -93,17 +94,35 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
     base.computeVertexNormals();
     add(base, rock, island, [0, -0.88, 0]);
     add(new THREE.CylinderGeometry(2.84, 2.72, 0.2, 32), soil, island, [0, 0, 0]);
-    add(new THREE.CylinderGeometry(2.81, 2.84, 0.17, 32), grass, island, [0, 0.16, 0]);
+    const ground = add(new THREE.CylinderGeometry(2.81, 2.84, 0.17, 32), grass, island, [0, 0.16, 0]);
     add(new THREE.DodecahedronGeometry(0.3, 0), rock, island, [-2.55, -1.3, 0.5]);
     add(new THREE.DodecahedronGeometry(0.19, 0), rock, island, [2.18, -1.85, 0.7]);
 
     const cabin = new THREE.Group(); cabin.position.set(-0.5, 0.25, -0.55); cabin.userData.action = 'cabin'; island.add(cabin);
     box([1.38, 0.95, 1.12], wood, cabin, [0, 0.49, 0]);
-    // Triangular prism roof, ridge running from front to back.
+    // Timber gables beneath separate overhanging roof panels.
     const roofShape = new THREE.Shape();
     roofShape.moveTo(-0.88, 0); roofShape.lineTo(0, 0.72); roofShape.lineTo(0.88, 0); roofShape.closePath();
-    const roofMesh = add(new THREE.ExtrudeGeometry(roofShape, { depth: 1.4, bevelEnabled: false }), roof, cabin, [0, 0.91, -0.7]);
-    roofMesh.receiveShadow = true;
+    add(new THREE.ExtrudeGeometry(roofShape, { depth: 1.12, bevelEnabled: false }), wood, cabin, [0, 0.91, -0.56], [0.79, 1, 1]);
+    const slope = Math.atan2(0.72, 0.88), roofLength = Math.hypot(0.88, 0.72);
+    for (const side of [-1, 1]) {
+      const panel = box([roofLength + 0.1, 0.095, 1.48], roof, cabin, [side * 0.44, 1.27, 0]);
+      panel.rotation.z = -side * slope;
+      for (const z of [-0.75, 0.75]) {
+        const fascia = box([roofLength + 0.13, 0.08, 0.075], trim, cabin, [side * 0.44, 1.24, z]);
+        fascia.rotation.z = -side * slope;
+      }
+      for (let row = 1; row < 5; row++) {
+        box([0.045, 0.035, 1.46], roof, cabin, [side * row * 0.18, 1.69 - row * 0.147, 0]);
+      }
+    }
+    box([0.12, 0.09, 1.53], roof, cabin, [0, 1.65, 0]);
+    const siding = material('#c18c60');
+    for (let row = 0; row < 7; row++) {
+      const y = 0.15 + row * 0.12;
+      for (const z of [-0.568, 0.568]) box([1.29, 0.018, 0.016], siding, cabin, [0, y, z]);
+      for (const x of [-0.698, 0.698]) box([0.016, 0.018, 1.1], siding, cabin, [x, y, 0]);
+    }
     for (const x of [-0.67, 0.67]) box([0.08, 0.95, 1.16], trim, cabin, [x, 0.48, 0]);
     box([1.45, 0.07, 1.2], trim, cabin, [0, 0.05, 0]);
     box([0.33, 0.65, 0.07], material('#574d48'), cabin, [0.12, 0.35, 0.59]);
@@ -114,9 +133,35 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
     box([0.07, 0.36, 0.42], windowMat, cabin, [0.71, 0.56, 0]);
     box([0.09, 0.4, 0.04], trim, cabin, [0.75, 0.56, 0]);
     box([0.09, 0.04, 0.47], trim, cabin, [0.75, 0.56, 0]);
+    // Recessed window frames, shutters and a planted window box.
+    for (const x of [-0.59, -0.15]) box([0.045, 0.42, 0.095], trim, cabin, [x, 0.59, 0.635]);
+    for (const y of [0.38, 0.8]) box([0.49, 0.045, 0.095], trim, cabin, [-0.37, y, 0.635]);
+    for (const z of [-0.25, 0.25]) box([0.095, 0.44, 0.045], trim, cabin, [0.75, 0.56, z]);
+    for (const y of [0.34, 0.78]) box([0.095, 0.045, 0.54], trim, cabin, [0.75, y, 0]);
+    for (const z of [-0.37, 0.37]) {
+      box([0.055, 0.4, 0.16], roof, cabin, [0.735, 0.56, z]);
+      for (let i = 0; i < 4; i++) box([0.065, 0.015, 0.14], trim, cabin, [0.745, 0.42 + i * 0.09, z]);
+    }
+    box([0.22, 0.14, 0.57], wood, cabin, [0.78, 0.26, 0]);
+    const blossom = material('#e8a7a2');
+    for (let i = 0; i < 4; i++) {
+      add(new THREE.IcosahedronGeometry(0.075, 0), foliage[1], cabin, [0.8, 0.35, -0.2 + i * 0.13]);
+      add(new THREE.IcosahedronGeometry(0.035, 0), blossom, cabin, [0.82, 0.4, -0.2 + i * 0.13]);
+    }
+    for (const x of [-0.08, 0.32]) box([0.045, 0.7, 0.09], trim, cabin, [x, 0.36, 0.635]);
+    box([0.45, 0.05, 0.1], trim, cabin, [0.12, 0.71, 0.635]);
+    for (let i = 0; i < 3; i++) box([0.012, 0.57, 0.015], siding, cabin, [0.01 + i * 0.1, 0.35, 0.635]);
+    box([0.7, 0.07, 0.44], roof, cabin, [0.12, 0.88, 0.78]).rotation.x = 0.12;
+    for (const x of [-0.19, 0.43]) box([0.045, 0.78, 0.045], wood, cabin, [x, 0.46, 0.92]);
+    box([0.82, 0.13, 0.46], wood, cabin, [0.12, 0.075, 0.77]);
+    for (let i = 0; i < 6; i++) box([0.012, 0.012, 0.44], siding, cabin, [-0.22 + i * 0.13, 0.145, 0.77]);
+    // Small attic vent and masonry courses finish the silhouette.
+    add(new THREE.CylinderGeometry(0.115, 0.115, 0.035, 12), trim, cabin, [0, 1.2, 0.58]).rotation.x = Math.PI / 2;
+    add(new THREE.CylinderGeometry(0.08, 0.08, 0.04, 12), roof, cabin, [0, 1.2, 0.605]).rotation.x = Math.PI / 2;
     box([0.3, 0.65, 0.28], stone, cabin, [0.45, 1.31, -0.28]);
     box([0.37, 0.09, 0.35], rock, cabin, [0.45, 1.63, -0.28]);
-    box([0.7, 0.09, 0.32], stone, cabin, [0.12, 0.025, 0.76]);
+    for (let i = 0; i < 4; i++) box([0.31, 0.018, 0.29], soil, cabin, [0.45, 1.12 + i * 0.13, -0.28]);
+    box([0.73, 0.075, 0.2], stone, cabin, [0.12, 0.035, 1.06]);
     const lamp = new THREE.PointLight('#ffc481', 1, 3.5, 2); lamp.position.set(-0.6, 1.05, 0.35); island.add(lamp);
 
     const trees = [];
@@ -150,6 +195,34 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       add(new THREE.IcosahedronGeometry(0.11, 0), foliage[1], island, [x, 0.31, z], [1.7, 0.85, 1]);
       add(new THREE.IcosahedronGeometry(0.055, 0), flower, island, [x, 0.4, z]);
     }
+    // One shared mesh for the meadow, with rooted, curved blades (not individual draw calls).
+    const blades = createMeadowLayout().map(blade => ({ ...blade, bendX: 0, bendZ: 0 }));
+    const meadowGeometry = new THREE.BufferGeometry();
+    const meadowVertices = [], meadowColors = [], meadowIndices = [];
+    const bladeLevels = [0, 0, 0.5, 0.5, 0.85, 0.85, 1];
+    const bladeWidths = [-0.5, 0.5, -0.34, 0.34, -0.15, 0.15, 0];
+    const rootColor = new THREE.Color('#567d43'), tipColor = new THREE.Color('#b2ca77');
+    const bladeColor = new THREE.Color();
+    blades.forEach((blade, index) => {
+      for (let v = 0; v < 7; v++) {
+        const width = bladeWidths[v] * blade.width;
+        meadowVertices.push(blade.x + Math.cos(blade.angle) * width, 0.245 + bladeLevels[v] * blade.height, blade.z + Math.sin(blade.angle) * width);
+        bladeColor.copy(rootColor).lerp(tipColor, bladeLevels[v] * 0.65 + blade.shade * 0.25);
+        meadowColors.push(bladeColor.r, bladeColor.g, bladeColor.b);
+      }
+      for (const v of [0, 1, 2, 1, 3, 2, 2, 3, 4, 3, 5, 4, 4, 5, 6]) meadowIndices.push(index * 7 + v);
+    });
+    meadowGeometry.setAttribute('position', new THREE.Float32BufferAttribute(meadowVertices, 3).setUsage(THREE.DynamicDrawUsage));
+    meadowGeometry.setAttribute('color', new THREE.Float32BufferAttribute(meadowColors, 3));
+    meadowGeometry.setIndex(meadowIndices); meadowGeometry.computeVertexNormals();
+    const meadow = add(meadowGeometry, material('#ffffff', { vertexColors: true, side: THREE.DoubleSide }), island);
+    meadow.castShadow = false;
+    meadow.frustumCulled = false;
+    // Picking uses the terrain underneath, so grass never blocks cabin/pond interactions.
+    meadow.raycast = () => {};
+    const meadowRest = new Float32Array(meadowVertices);
+    let grassPointer = null;
+
     const clouds = [];
     const cloudMat = material('#f5eee0', { roughness: 1 });
     [[-2.8, 2.8, -1.1, 0.6], [2.3, 2.9, -1.8, 0.48], [1.7, -0.65, 2.5, 0.38]].forEach(([x, y, z, scale]) => {
@@ -177,6 +250,8 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
       scene.updateMatrixWorld(); raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects(island.children, true)[0];
+      grassPointer = hit?.object === ground && hit.point.y > 0.2 ? { x: hit.point.x, z: hit.point.z } : null;
+      requestRender();
       let object = hit?.object;
       while (object && !object.userData.action) object = object.parent;
       return object?.userData.action || null;
@@ -203,6 +278,7 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       if (pointers.size === 1) tap = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
       else if (tap) tap.moved = true;
       highlight(null);
+      grassPointer = null;
     });
     listen(canvas, 'pointermove', event => {
       if (tap && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 6) tap.moved = true;
@@ -212,8 +288,8 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       if (tap && tap.id === event.pointerId && !tap.moved && pointers.size === 1) { const action = pick(event); if (action) act(action); }
       pointers.delete(event.pointerId); if (!pointers.size) tap = null;
     });
-    listen(canvas, 'pointercancel', event => { pointers.delete(event.pointerId); tap = null; });
-    listen(canvas, 'pointerleave', () => highlight(null));
+    listen(canvas, 'pointercancel', event => { pointers.delete(event.pointerId); tap = null; grassPointer = null; requestRender(); });
+    listen(canvas, 'pointerleave', () => { grassPointer = null; highlight(null); requestRender(); });
     listen(canvas, 'webglcontextlost', event => { event.preventDefault(); dispose(); onError(); });
 
     const dayColor = new THREE.Color('#ffdfb2'), moonColor = new THREE.Color('#92b6ff');
@@ -231,6 +307,20 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       clouds.forEach(({ group, x }, i) => { group.position.x = x + (reduced ? 0 : Math.sin(time * 0.15 + i) * 0.15); });
       if (!reduced) gust = Math.max(0, gust - dt);
       trees.forEach((tree, i) => { tree.rotation.z = reduced ? 0 : Math.sin(time * 5 + i) * 0.09 * Math.min(gust, 1); });
+      const meadowPosition = meadowGeometry.attributes.position;
+      blades.forEach((blade, index) => {
+        const push = grassPush(blade.x, blade.z, grassPointer);
+        const wind = reduced ? 0 : Math.sin(time * 1.8 + blade.x * 2 + blade.z) * (0.018 + Math.min(gust, 1) * 0.055);
+        const targetX = push.x + wind, targetZ = push.z + wind * 0.35;
+        blade.bendX = reduced ? targetX : THREE.MathUtils.damp(blade.bendX, targetX, 12, dt);
+        blade.bendZ = reduced ? targetZ : THREE.MathUtils.damp(blade.bendZ, targetZ, 12, dt);
+        for (let v = 0; v < 7; v++) {
+          const vertex = index * 7 + v, offset = vertex * 3, curve = bladeLevels[v] ** 2;
+          const bend = Math.hypot(blade.bendX, blade.bendZ);
+          meadowPosition.setXYZ(vertex, meadowRest[offset] + blade.bendX * curve, meadowRest[offset + 1] - Math.min(blade.height * 0.55, bend * 0.45) * curve, meadowRest[offset + 2] + blade.bendZ * curve);
+        }
+      });
+      meadowPosition.needsUpdate = true;
       if (rippleTime >= 0 && !reduced) rippleTime += dt;
       ripples.forEach((ring, i) => {
         const progress = rippleTime - i * 0.23;
@@ -248,7 +338,7 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       if (!reduced) frame = requestAnimationFrame(render);
     }
     function requestRender() { if (!disposed && visible && !frame) frame = requestAnimationFrame(render); }
-    controls.addEventListener('change', requestRender);
+    controls.addEventListener('change', () => { grassPointer = null; requestRender(); });
     const resize = () => {
       if (disposed) return;
       const width = host.clientWidth, height = host.clientHeight;

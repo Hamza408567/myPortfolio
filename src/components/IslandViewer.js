@@ -57,11 +57,7 @@ export default function IslandViewer() {
   const ready = status === 'ready';
 
   return (
-    <section className={`island-viewer ${night ? 'island-night' : ''}`} aria-labelledby="island-title">
-      <header className="island-header">
-        <div><span className="island-eyebrow">A SMALL ESCAPE</span><h2 id="island-title">A Little World<span aria-hidden="true">.</span></h2></div>
-        <span className="island-edition">01 / EXPLORE</span>
-      </header>
+    <section className={`island-viewer ${night ? 'island-night' : ''}`} aria-label="Interactive floating island">
       <div className="island-stage">
         <div className="island-sky-orb" aria-hidden="true" />
         <div className="island-horizon" aria-hidden="true" />
