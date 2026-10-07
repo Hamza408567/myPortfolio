@@ -3,8 +3,6 @@
   background: transparent; border: 0; padding: 0; position: relative;
 }
 .island-stage { position:relative; isolation:isolate; aspect-ratio:1; width:100%; overflow:hidden; background:transparent; }
-.island-sky-orb { position:absolute; top:8%; right:14%; width:54px; height:54px; border-radius:50%; background:#fff2cc; box-shadow:0 0 45px #fff4d7a0; transition:background .6s; }
-.island-night .island-sky-orb { background:transparent; box-shadow:inset 13px -8px 0 0 #dde8ed; filter:drop-shadow(0 0 16px #cde4ff35); }
 .island-horizon { position:absolute; width:66%; height:15%; left:17%; bottom:12%; border-radius:50%; background:#407382; opacity:.12; filter:blur(18px); }
 .island-canvas-host { position:absolute; inset:0; z-index:1; }
 .island-canvas-host canvas { display:block; width:100%; height:100%; cursor:grab; }

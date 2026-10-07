@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { alignSkyLight } from './islandLighting';
+import { alignSkyLight, celestialPosition, themeCabinLights } from './islandLighting';
 
 test('light stays aligned with the visible sun through orbit, tilt, zoom and resize', () => {
   const light = new THREE.DirectionalLight(), target = new THREE.Vector3(0, 0.25, 0);
@@ -17,4 +17,24 @@ test('light stays aligned with the visible sun through orbit, tilt, zoom and res
     }
   }
   light.dispose();
+});
+
+test('sun and moon exchange places along opposite halves of the same orbit', () => {
+  const day = celestialPosition(0, false, 570, 570);
+  const night = celestialPosition(1, true, 570, 570);
+  expect(night.x).toBeCloseTo(day.x);
+  expect(night.y).toBeCloseTo(day.y);
+  expect(celestialPosition(0.5, false, 570, 570)).not.toEqual(day);
+  for (const mix of [0, 0.25, 0.5, 0.75, 1]) {
+    const sun = celestialPosition(mix, false, 570, 570), moon = celestialPosition(mix, true, 570, 570);
+    expect(sun.x + moon.x).toBeCloseTo(0);
+    expect(sun.y + moon.y).toBeCloseTo(-0.7);
+  }
+});
+
+test('theme transitions restore automatic lights but repeated theme updates preserve clicks', () => {
+  expect(themeCabinLights(false, true, false)).toBe(true);
+  expect(themeCabinLights(true, false, true)).toBe(false);
+  expect(themeCabinLights(true, true, false)).toBe(false);
+  expect(themeCabinLights(false, false, true)).toBe(true);
 });

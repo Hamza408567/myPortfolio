@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createMeadowLayout, grassPush } from './islandGrass';
 import { createPondWaterMaterial } from './islandWater';
 import { createFrogState, startFrogHop, updateFrog, frogSurfaceHeight } from './islandFrog';
-import { alignSkyLight } from './islandLighting';
+import { alignSkyLight, celestialPosition, themeCabinLights } from './islandLighting';
 
 // A self-contained scene: all geometry and materials are created locally.
 export function createIslandScene(host, { onHover, onAction, onError, reducedMotion = false, initialNight = false }) {
@@ -12,7 +12,7 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
   const materials = new Set();
   let renderer, controls, observer, frame = 0, disposed = false;
   let visible = false, reduced = reducedMotion, time = 0, lastTime = 0;
-  let night = initialNight, nightMix = initialNight ? 1 : 0, lamps = true, gust = 0, rippleTime = -1;
+  let night = initialNight, nightMix = initialNight ? 1 : 0, lamps = initialNight, lampMix = initialNight ? 1 : 0, rippleTime = -1;
   const events = [];
   const listen = (target, type, handler, options) => {
     target.addEventListener(type, handler, options);
@@ -40,7 +40,7 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.25;
     const canvas = renderer.domElement;
-    canvas.setAttribute('aria-label', 'Floating island with a cabin, meadow, and pond. Hover near the frog or tap it to make it hop away. Move over grass to bend it. Drag to rotate; tap the cabin, trees, or pond to interact.');
+    canvas.setAttribute('aria-label', 'Floating island with a cabin, breezy meadow, and pond. Trees and grass sway in a continuous breeze. Hover near the frog or tap it to make it hop away. Move over grass to bend it. Drag to rotate; tap the cabin or pond to interact.');
     canvas.setAttribute('role', 'img');
     host.appendChild(canvas);
 
@@ -166,10 +166,30 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
     for (let i = 0; i < 4; i++) box([0.31, 0.018, 0.29], soil, cabin, [0.45, 1.12 + i * 0.13, -0.28]);
     box([0.73, 0.075, 0.2], stone, cabin, [0.12, 0.035, 1.06]);
     const lamp = new THREE.PointLight('#ffc481', 1, 3.5, 2); lamp.position.set(-0.6, 1.05, 0.35); island.add(lamp);
+    // Stylized light shafts fade along their length; depth testing hides them behind scenery.
+    const rayMaterial = color => {
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { color: { value: new THREE.Color(color) }, strength: { value: 0 } },
+        transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+        vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+        fragmentShader: 'uniform vec3 color; uniform float strength; varying vec2 vUv; void main(){ float edge=pow(sin(vUv.x*3.14159265),2.0); gl_FragColor=vec4(color, edge*pow(vUv.y,1.8)*strength); }',
+      });
+      materials.add(mat); return mat;
+    };
+    const windowRays = rayMaterial('#ffd18b');
+    for (const [start, end] of [
+      [new THREE.Vector3(-0.37, 0.59, 0.65), new THREE.Vector3(-0.37, 0.07, 1.65)],
+      [new THREE.Vector3(0.76, 0.56, 0), new THREE.Vector3(1.7, 0.07, 0)],
+    ]) {
+      const shaft = add(new THREE.ConeGeometry(0.38, start.distanceTo(end), 24, 1, true), windowRays, cabin);
+      shaft.position.copy(start).add(end).multiplyScalar(0.5);
+      shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), start.clone().sub(end).normalize());
+      shaft.castShadow = false; shaft.receiveShadow = false; shaft.raycast = () => {};
+    }
 
     const trees = [];
     [[-1.8, -0.6, 0.9], [1.1, -1.2, 1.12], [1.96, -0.25, 0.8], [-1.95, 0.65, 0.64]].forEach(([x, z, scale], index) => {
-      const tree = new THREE.Group(); tree.position.set(x, 0.24, z); tree.scale.setScalar(scale); tree.userData.action = 'trees'; island.add(tree); trees.push(tree);
+      const tree = new THREE.Group(); tree.position.set(x, 0.24, z); tree.scale.setScalar(scale); island.add(tree); trees.push(tree);
       add(new THREE.CylinderGeometry(0.08, 0.13, 0.9, 7), trunk, tree, [0, 0.45, 0]);
       for (let layer = 0; layer < 3; layer++) add(new THREE.ConeGeometry(0.66 - layer * 0.15, 0.85, 7), foliage[(index + layer) % 3], tree, [0, 0.9 + layer * 0.39, 0]);
     });
@@ -277,6 +297,28 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
     const sun = new THREE.DirectionalLight('#ffdfb2', 3.5); sun.position.set(-3, 7, 5); sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024); sun.shadow.camera.left = -5; sun.shadow.camera.right = 5; sun.shadow.camera.top = 5; sun.shadow.camera.bottom = -5; sun.shadow.normalBias = 0.035; sun.shadow.bias = -0.0003; sun.shadow.camera.far = 25; scene.add(sun);
     const fill = new THREE.DirectionalLight('#a7c9ff', 1.0); fill.position.set(4, 2, -4); scene.add(fill);
+    const celestialBodies = [];
+    const sunRays = rayMaterial('#ffe2a2');
+    for (const isMoon of [false, true]) {
+      const body = new THREE.Group(); scene.add(body);
+      const mat = new THREE.MeshBasicMaterial({ color: isMoon ? '#cfdeed' : '#fff0b8', transparent: true }); materials.add(mat);
+      const sphere = add(new THREE.SphereGeometry(1, 24, 16), mat, body);
+      sphere.castShadow = false; sphere.receiveShadow = false;
+      if (isMoon) {
+        const craterMat = new THREE.MeshBasicMaterial({ color: '#9badc5', transparent: true }); materials.add(craterMat);
+        for (const [x, y, r] of [[-0.35, 0.3, 0.17], [0.34, -0.24, 0.23], [-0.25, -0.42, 0.12]]) {
+          const crater = add(new THREE.SphereGeometry(r, 12, 8), craterMat, body, [x, y, Math.sqrt(1 - x*x - y*y) - 0.035], [1, 1, 0.25]);
+          crater.castShadow = false; crater.receiveShadow = false;
+        }
+      } else {
+        for (let i = 0; i < 3; i++) {
+          const beam = add(new THREE.PlaneGeometry(0.5 + i * 0.18, 7), sunRays, body, [-1.2 - i * 0.45, -3.1, -0.15]);
+          beam.rotation.z = -0.35 - i * 0.12;
+          beam.castShadow = false; beam.receiveShadow = false; beam.raycast = () => {};
+        }
+      }
+      celestialBodies.push({ body, isMoon });
+    }
     const starsGeometry = new THREE.BufferGeometry(); geometries.add(starsGeometry);
     const starsPositions = [];
     for (let i = 0; i < 40; i++) { const a = i * 2.399; starsPositions.push(Math.cos(a) * (3.3 + i % 3 * 0.2), 1.6 + (i % 9) * 0.3, Math.sin(a) * 3.6); }
@@ -284,7 +326,7 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
     const starsMat = new THREE.PointsMaterial({ color: '#dcecff', size: 0.045, transparent: true, opacity: 0 }); materials.add(starsMat); scene.add(new THREE.Points(starsGeometry, starsMat));
 
     let hovered = null;
-    const actionLabels = { cabin: 'Cabin · toggle lights', trees: 'Trees · send a breeze', pond: 'Pond · make ripples', frog: 'A shy frog · give it a little space' };
+    const actionLabels = { cabin: 'Cabin · toggle lights', pond: 'Pond · make ripples', frog: 'A shy frog · give it a little space' };
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const pick = event => {
@@ -314,14 +356,12 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       if (hovered === action) return;
       hovered = action;
       wood.emissive.set(action === 'cabin' ? '#3b2218' : '#000000');
-      foliage.forEach(mat => mat.emissive.set(action === 'trees' ? '#173b25' : '#000000'));
       water.uniforms.uHover.value = action === 'pond' ? 1 : 0;
       canvas.style.cursor = action ? 'pointer' : 'grab';
       onHover(action ? actionLabels[action] : ''); requestRender();
     };
     const act = action => {
       if (action === 'cabin') { lamps = !lamps; onAction(lamps ? 'Cabin lights on. Welcome home.' : 'Cabin lights off. A little quiet.'); }
-      if (action === 'trees') { gust = reduced ? 0 : 2.4; foliage.forEach(mat => mat.emissive.set(reduced ? '#173b25' : '#000000')); onAction('A breeze through the pines.'); }
       if (action === 'pond') { rippleTime = reduced ? 0.6 : 0; water.uniforms.uRippleOrigin.value.copy(rippleOrigin); onAction('Ripples across the pond.'); }
       if (action === 'frog') disturbFrog();
       requestRender();
@@ -369,20 +409,28 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       frogEyes.forEach(eye => { eye.scale.y = blink; });
       const target = night ? 1 : 0;
       nightMix = reduced ? target : THREE.MathUtils.damp(nightMix, target, 5, dt);
+      lampMix = reduced ? Number(lamps) : THREE.MathUtils.damp(lampMix, Number(lamps), 5, dt);
       sky.intensity = THREE.MathUtils.lerp(2.6, 0.8, nightMix);
-      sun.intensity = THREE.MathUtils.lerp(3.5, 0.9, nightMix);
+      sun.intensity = THREE.MathUtils.lerp(3.5, 0.9, nightMix) * Math.abs(1 - 2 * nightMix);
       sun.color.copy(dayColor).lerp(moonColor, nightMix);
       starsMat.opacity = nightMix * 0.85;
-      windowMat.emissiveIntensity = lamps ? 0.7 + nightMix * 2 : 0;
-      windowMat.color.set(lamps ? '#ffcd83' : '#344959');
-      lamp.intensity = lamps ? 0.7 + nightMix * 2 : 0;
+      windowMat.emissiveIntensity = lampMix * (0.7 + nightMix * 2);
+      windowMat.color.set('#344959').lerp(new THREE.Color('#ffcd83'), lampMix);
+      lamp.intensity = lampMix * (0.7 + nightMix * 2);
+      windowRays.uniforms.strength.value = nightMix * lampMix * 0.16;
+      sunRays.uniforms.strength.value = (1 - nightMix) * 0.09;
       clouds.forEach(({ group, x }, i) => { group.position.x = x + (reduced ? 0 : Math.sin(time * 0.15 + i) * 0.15); });
-      if (!reduced) gust = Math.max(0, gust - dt);
-      trees.forEach((tree, i) => { tree.rotation.z = reduced ? 0 : Math.sin(time * 5 + i) * 0.09 * Math.min(gust, 1); });
+      // An eight-second seamless breeze cycle, with slightly staggered tree motion.
+      const breezePhase = (time % 8) / 8 * Math.PI * 2;
+      const breeze = 0.55 + 0.25 * Math.sin(breezePhase);
+      trees.forEach((tree, i) => {
+        tree.rotation.z = reduced ? 0 : Math.sin(breezePhase * 2 + i * 0.7) * 0.055 * breeze;
+        tree.rotation.x = reduced ? 0 : Math.cos(breezePhase + i * 0.5) * 0.018 * breeze;
+      });
       const meadowPosition = meadowGeometry.attributes.position;
       blades.forEach((blade, index) => {
         const push = grassPush(blade.x, blade.z, grassPointer);
-        const wind = reduced ? 0 : Math.sin(time * 1.8 + blade.x * 2 + blade.z) * (0.018 + Math.min(gust, 1) * 0.055);
+        const wind = reduced ? 0 : Math.sin(breezePhase * 2 + blade.x * 2 + blade.z) * (0.018 + breeze * 0.035);
         const targetX = push.x + wind, targetZ = push.z + wind * 0.35;
         blade.bendX = reduced ? targetX : THREE.MathUtils.damp(blade.bendX, targetX, 12, dt);
         blade.bendZ = reduced ? targetZ : THREE.MathUtils.damp(blade.bendZ, targetZ, 12, dt);
@@ -408,8 +456,21 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
       if (disposed || !visible) return;
       const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, 0.05) : 1 / 60;
       lastTime = timestamp;
-      alignSkyLight(sun, camera, controls.target, host.clientWidth, host.clientHeight);
-      update(dt); renderer.render(scene, camera);
+      update(dt);
+      const width = host.clientWidth, height = host.clientHeight;
+      alignSkyLight(sun, camera, controls.target, width, height, nightMix);
+      if (width && height) {
+        const depth = camera.position.distanceTo(controls.target) * 0.45;
+        const halfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * depth;
+        celestialBodies.forEach(({ body, isMoon }) => {
+          const position = celestialPosition(nightMix, isMoon, width, height);
+          body.position.set(position.x * halfHeight * camera.aspect, position.y * halfHeight, -depth).applyMatrix4(camera.matrixWorld);
+          body.quaternion.copy(camera.quaternion);
+          body.scale.setScalar(halfHeight * 54 / height);
+          body.visible = isMoon ? nightMix > 0.001 : nightMix < 0.999;
+        });
+      }
+      renderer.render(scene, camera);
       if (!reduced) frame = requestAnimationFrame(render);
     }
     function requestRender() { if (!disposed && visible && !frame) frame = requestAnimationFrame(render); }
@@ -425,8 +486,8 @@ export function createIslandScene(host, { onHover, onAction, onError, reducedMot
     return {
       dispose,
       act,
-      setNight(value) { night = value; requestRender(); },
-      setReduced(value) { reduced = value; gust = 0; requestRender(); },
+      setNight(value) { lamps = themeCabinLights(night, value, lamps); night = value; requestRender(); },
+      setReduced(value) { reduced = value; requestRender(); },
       setVisible(value) { visible = value; lastTime = 0; if (!value) { cancelAnimationFrame(frame); frame = 0; } else requestRender(); },
       zoom(direction) {
         const offset = camera.position.clone().sub(controls.target);

@@ -59,7 +59,6 @@ export default function IslandViewer() {
   return (
     <section className={`island-viewer ${night ? 'island-night' : ''}`} aria-label="Interactive floating island">
       <div className="island-stage">
-        <div className="island-sky-orb" aria-hidden="true" />
         <div className="island-horizon" aria-hidden="true" />
         <div className="island-canvas-host" ref={host} />
         {!ready && <div className="island-placeholder"><IslandIllustration /><p role="status">{status === 'loading' ? 'Growing a little world…' : 'A quiet glimpse. Interactive 3D isn’t available in this browser.'}</p></div>}
