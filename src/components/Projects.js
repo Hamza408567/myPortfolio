@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaArrowRight, FaDownload, FaGooglePlay } from 'react-icons/fa';
+import { FaArrowRight, FaDownload, FaGooglePlay, FaVrCardboard } from 'react-icons/fa';
 import './Projects.css';
 
 const Projects = () => {
@@ -101,6 +101,14 @@ const Projects = () => {
       playStore: 'https://play.google.com/store/apps/details?id=www.BangerGames.FindToy.com',
       fallbackEmoji: '🧸',
     },
+    {
+      title: 'Cebus',
+      description: 'A virtual reality action platformer for Meta Quest.',
+      tech: ['VR', 'Meta Quest', 'Action Platformer'],
+      store: 'Meta Quest',
+      storeUrl: 'https://www.meta.com/experiences/cebus/6404015439622172/',
+      fallbackEmoji: '🥽',
+    },
   ];
 
   const containerVariants = {
@@ -153,10 +161,10 @@ const Projects = () => {
             <motion.a
               key={project.title}
               className="project-card"
-              href={project.playStore}
+              href={project.storeUrl || project.playStore}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`Download ${project.title} on Google Play`}
+              aria-label={project.store ? `View ${project.title} on ${project.store}` : `Download ${project.title} on Google Play`}
               variants={itemVariants}
               whileHover={{ y: -10 }}
               whileTap={{ scale: 0.985 }}
@@ -164,7 +172,7 @@ const Projects = () => {
             >
               <div className="project-image">
                 <span className="play-store-badge">
-                  <FaGooglePlay /> Google Play
+                  {project.store ? <FaVrCardboard aria-hidden="true" /> : <FaGooglePlay aria-hidden="true" />} {project.store || 'Google Play'}
                 </span>
                 {project.imageUrl && !imageErrors[index] ? (
                   <img 
@@ -206,7 +214,7 @@ const Projects = () => {
                   <span className="project-download-icon"><FaDownload /></span>
                   <span className="project-download-copy">
                     <small>Get the game</small>
-                    <strong>Download on Google Play</strong>
+                    <strong>{project.store ? `View on ${project.store}` : 'Download on Google Play'}</strong>
                   </span>
                   <FaArrowRight className="project-download-arrow" />
                 </div>

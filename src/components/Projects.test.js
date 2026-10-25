@@ -10,8 +10,8 @@ jest.mock('framer-motion', () => {
 
 test('adds all three supplied store links while retaining the existing projects', () => {
   render(<Projects />);
-  expect(screen.getAllByRole('link')).toHaveLength(12);
-  expect(screen.getAllByRole('link').slice(-3).map(card => card.getAttribute('aria-label'))).toEqual([
+  expect(screen.getAllByRole('link')).toHaveLength(13);
+  expect(screen.getAllByRole('link').slice(-4, -1).map(card => card.getAttribute('aria-label'))).toEqual([
     'Download Ants & Cubes on Google Play',
     'Download Plant Revive on Google Play',
     'Download Find Toy on Google Play',
@@ -26,6 +26,17 @@ test('adds all three supplied store links while retaining the existing projects'
     expect(card).toHaveAttribute('rel', 'noopener noreferrer');
     expect(card).toHaveTextContent('Download on Google Play');
   });
+});
+
+test('Cebus is the last card and uses Meta Quest branding and its canonical store link', () => {
+  render(<Projects />);
+  const card = screen.getByRole('link', { name: 'View Cebus on Meta Quest' });
+  expect(screen.getAllByRole('link').at(-1)).toBe(card);
+  expect(card).toHaveAttribute('href', 'https://www.meta.com/experiences/cebus/6404015439622172/');
+  expect(card).toHaveAttribute('target', '_blank');
+  expect(card).toHaveAttribute('rel', 'noopener noreferrer');
+  expect(card).toHaveTextContent('View on Meta Quest');
+  expect(card).not.toHaveTextContent('Google Play');
 });
 
 test('new project artwork falls back gracefully when unavailable', () => {
